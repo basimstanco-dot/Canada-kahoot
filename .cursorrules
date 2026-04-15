@@ -1,0 +1,81 @@
+# Cursor Rules — Voxel Vibecraft
+
+## 1) Stack technique retenue
+- **Runtime**: TypeScript + Vite + Three.js (`WebGLRenderer`) avec architecture compatible migration WebGPU.
+- **Pourquoi ce choix**:
+  - Three.js fournit un excellent ratio **performance / vélocité** pour un challenge d'1h.
+  - Vite donne itérations ultra rapides, HMR et build simple.
+  - TypeScript stabilise l'itération future (contrats explicites entre rendu, monde, gameplay).
+  - Le pipeline est compatible optimisation progressive: greedy meshing, worker chunks, occlusion culling, post-process.
+
+## 2) Librairies exactes
+- `three`
+- `vite`
+- `typescript`
+
+Optionnelles pour itérations futures:
+- `stats.js` (profiling FPS)
+- `simplex-noise` (terrain)
+- `cannon-es` (physique rigide si besoin)
+
+## 3) Structure du projet (modulaire)
+
+```text
+src/
+  core/
+    Game.ts               # bootstrap global, boucle, orchestration
+  render/
+    TextureGenerator.ts   # génération procédurale des textures Canvas
+  world/
+    BlockTypes.ts         # définitions bloc + registres
+    Chunk.ts              # données voxel chunk (storage + génération)
+    ChunkMesh.ts          # conversion chunk -> InstancedMesh
+    World.ts              # gestion chunks, raycast voxel, mutation
+  player/
+    PlayerController.ts   # FPS controls + gravité + collisions voxel
+  main.ts                 # entrée app
+  styles.css              # HUD et styles globaux
+```
+
+## 4) Séparation des responsabilités
+- **Game**: ne contient pas de logique voxel interne; il orchestre uniquement update/render/events.
+- **World/Chunk**: source de vérité des blocs, aucune dépendance UI.
+- **ChunkMesh/Render**: responsabilité de rendu uniquement, sans logique de déplacement joueur.
+- **PlayerController**: uniquement mouvement, collisions et input.
+- **TextureGenerator**: unique source de textures, **interdiction d'assets externes**.
+
+## 5) Conventions de code
+- TypeScript `strict` obligatoire.
+- Nommage:
+  - Classes: `PascalCase`
+  - Fonctions/variables: `camelCase`
+  - Constantes globales: `UPPER_SNAKE_CASE`
+- Fichiers: 1 domaine logique par fichier, max ~250 lignes.
+- Pas de logique “magique”: extraire en constantes nommées.
+- Éviter les singletons globaux; préférer injection par constructeur.
+- Aucune importation d'images `.png/.jpg/.webp`; tout passe par `TextureGenerator`.
+
+## 6) Règles gameplay / perf minimales
+- Rebuild de mesh chunk seulement lors d'une mutation locale.
+- Gérer bords de chunks (rebuild voisin si bloc touché à la frontière).
+- Raycast voxel déterministe (step DDA simplifié ou équivalent).
+- Contrôles fluides:
+  - deltaTime capé (éviter pics physiques)
+  - gravité stable
+  - collisions AABB voxel
+- Objectif de base: 60 FPS sur machine standard avec rayon 2 chunks.
+
+## 7) Pipeline visuel
+- Direction artistique: low-poly stylisé, textures procédurales bruitées.
+- Éclairage:
+  - Directional + Ambient + Hemisphere
+  - cycle jour/nuit basique via orbite de la lumière principale
+  - bloom léger autorisé
+- Toujours tester lisibilité (crosshair, contraste du terrain, horizon/fog).
+
+## 8) Stratégie d'évolution (itérations suivantes)
+1. Greedy meshing + face culling avancé.
+2. Génération chunks asynchrone via Worker.
+3. Biomes procéduraux + bruit fractal.
+4. AO voxel fake par vertex color.
+5. Save/load local chunk data.
